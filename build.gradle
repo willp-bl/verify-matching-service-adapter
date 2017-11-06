@@ -3,8 +3,7 @@ buildscript {
         maven { url 'https://artifactory.ida.digital.cabinet-office.gov.uk/artifactory/whitelisted-repos' }
     }
     dependencies {
-        classpath 'uk.gov.ida:ida-gradle:1.1.0-15',
-	        'com.github.ben-manes:gradle-versions-plugin:0.11.3'
+        classpath 'com.github.ben-manes:gradle-versions-plugin:0.11.3'
 
     }
 }
@@ -15,13 +14,10 @@ plugins {
 
 apply plugin: "java"
 apply plugin: "jacoco"
-apply plugin: 'idaSonar'
-apply plugin: 'application'
 apply plugin: 'com.github.ben-manes.versions'
 
-idaSonar {
-    name = 'verify-matching-service-adapter-sonar'
-}
+group = "uk.gov.ida"
+version = "${System.env.BUILD_NUMBER ?: 'SNAPSHOT'}"
 
 ext {
     opensaml = '3.3.0'
@@ -41,8 +37,6 @@ def dependencyVersions = [
         trust_anchor: '1.0-19',
         saml_libs_version: "$opensaml-109"
 ]
-
-apply plugin: "idaJar"
 
 repositories {
     maven { url 'https://artifactory.ida.digital.cabinet-office.gov.uk/artifactory/whitelisted-repos' }
@@ -142,8 +136,16 @@ sourceSets {
     }
 }
 
-ext.mainclass = 'uk.gov.ida.matchingserviceadapter.MatchingServiceAdapterApplication'
-mainClassName = ext.mainclass
+jar {
+    archiveName = baseName+".jar"
+    destinationDir = file(new File("$buildDir/output"))
+    manifest {
+        attributes(
+                "Main-Class": 'uk.gov.ida.matchingserviceadapter.MatchingServiceAdapterApplication',
+                "Class-Path": configurations.compile.collect { "lib/"+it.getName() }.join(' ')
+        )
+    }
+}
 
 task copyToLib(dependsOn: jar, type: Copy) {
     into "$buildDir/output/lib"
@@ -169,15 +171,7 @@ task intTest(type: Test) {
     classpath += sourceSets.intTest.runtimeClasspath
 }
 
-run {
-    int debug_port = System.getenv("TEST_RP_MSA_PORT") != null ? Integer.parseInt(System.getenv("TEST_RP_MSA_PORT")) + 2 : 50212
-    String debug = "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=$debug_port" 
-    applicationDefaultJvmArgs = [debug]
-    args = ["server", "configuration/verify-matching-service-adapter.yml"]
-}
-
 task(outputDependencies) doLast {
     println "ida_utils=$dependencyVersions.ida_utils"
 }
 
-task sonar(dependsOn: [':clean', ':test', intTest, 'sonarqube'])

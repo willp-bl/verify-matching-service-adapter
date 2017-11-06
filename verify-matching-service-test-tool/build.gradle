@@ -1,5 +1,5 @@
 group 'uk.gov.ida'
-version = "$version"
+version = "${System.env.BUILD_NUMBER ?: 'SNAPSHOT'}"
 
 apply plugin: 'java'
 apply plugin: 'application'
